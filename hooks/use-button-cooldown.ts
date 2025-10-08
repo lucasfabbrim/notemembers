@@ -21,8 +21,8 @@ function notifyListeners() {
 }
 
 export function useButtonCooldown(buttonId: string, cooldownDuration = 3) {
-  const [state, setState] = useState(globalCooldownState)
-  const intervalRef = useRef<NodeJS.Timeout>()
+  const [state, setState] = useState<CooldownState>(globalCooldownState)
+  const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     const listener = () => setState({ ...globalCooldownState })

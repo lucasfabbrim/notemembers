@@ -34,58 +34,36 @@ export default function ProfilePage() {
         const userData = getUserData()
         const token = getAuthToken()
 
-        console.log("[v0] Loading profile data")
-        console.log("[v0] User data from storage:", userData)
-        console.log("[v0] Token exists:", !!token)
-
         if (!token) {
-          console.log("[v0] No token found, redirecting to login")
           setError("Sessão expirada. Faça login novamente.")
           setLoading(false)
           return
         }
 
         if (userData) {
-          console.log("[v0] Setting user data:", userData)
           setUser(userData)
-        } else {
-          console.log("[v0] No user data in storage")
         }
 
         try {
-          console.log("[v0] Fetching purchases from API...")
           const purchasesResponse = await api.customers.getPurchases(token)
-          console.log("[v0] Raw purchases response:", purchasesResponse)
 
-          // Handle different response structures
           let purchasesData: any[] = []
 
           if (Array.isArray(purchasesResponse)) {
             purchasesData = purchasesResponse
-          } else if (purchasesResponse?.data) {
-            if (Array.isArray(purchasesResponse.data)) {
-              purchasesData = purchasesResponse.data
-            } else if (purchasesResponse.data.purchases && Array.isArray(purchasesResponse.data.purchases)) {
-              purchasesData = purchasesResponse.data.purchases
+          } else if ((purchasesResponse as any)?.data) {
+            if (Array.isArray((purchasesResponse as any).data)) {
+              purchasesData = (purchasesResponse as any).data
+            } else if ((purchasesResponse as any).data.purchases && Array.isArray((purchasesResponse as any).data.purchases)) {
+              purchasesData = (purchasesResponse as any).data.purchases
             }
           }
 
-          console.log("[v0] Parsed purchases data:", purchasesData)
-          console.log("[v0] Number of purchases:", purchasesData.length)
-
           setPurchases(purchasesData)
         } catch (purchaseError: any) {
-          console.error("[v0] Error loading purchases:", purchaseError)
-          console.error("[v0] Error message:", purchaseError.message)
-          console.error("[v0] Error stack:", purchaseError.stack)
-
-          // Don't set error state for purchases - just log it
-          // User info is more important
           setPurchases([])
         }
       } catch (error: any) {
-        console.error("[v0] Error loading profile data:", error)
-        console.error("[v0] Error message:", error.message)
         setError("Erro ao carregar dados do perfil. Tente novamente.")
       } finally {
         setLoading(false)

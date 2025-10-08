@@ -1,6 +1,8 @@
 "use client"
 
-import React, { useState, useRef, useImperativeHandle, forwardRef } from "react"
+import type React from "react"
+
+import { useState, useRef } from "react"
 import { Upload, X, Loader2, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useThumbnailUpload } from "@/hooks/use-thumbnail-upload"
@@ -10,28 +12,15 @@ interface ThumbnailUploadProps {
   value?: string
   onChange: (url: string) => void
   className?: string
-  onStatusChange?: (status: "uploading" | "success" | "error", progress?: number, error?: string) => void
 }
 
-export interface ThumbnailUploadRef {
-  upload: () => Promise<string | null>
-}
-
-export const ThumbnailUpload = forwardRef<ThumbnailUploadRef, ThumbnailUploadProps>(
-  ({ value, onChange, className, onStatusChange }, ref) => {
+export function ThumbnailUpload({ value, onChange, className }: ThumbnailUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { setFile, upload, uploading, progress, error, pendingFile, clearFile, setOnStatusChange } = useThumbnailUpload()
+  const { upload, uploading, progress, error } = useThumbnailUpload()
 
-  // Set up status change callback
-  React.useEffect(() => {
-    if (onStatusChange) {
-      setOnStatusChange(onStatusChange)
-    }
-  }, [onStatusChange, setOnStatusChange])
-
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     // Show preview immediately
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -39,8 +28,11 @@ export const ThumbnailUpload = forwardRef<ThumbnailUploadRef, ThumbnailUploadPro
     }
     reader.readAsDataURL(file)
 
-    // Validate and set file for later upload
-    setFile(file)
+    // Upload to Supabase
+    const url = await upload(file)
+    if (url) {
+      onChange(url)
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -63,26 +55,10 @@ export const ThumbnailUpload = forwardRef<ThumbnailUploadRef, ThumbnailUploadPro
   const handleRemove = () => {
     setPreview(null)
     onChange("")
-    clearFile()
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
-
-  // Expose upload function via ref
-  useImperativeHandle(ref, () => ({
-    upload: async () => {
-      if (pendingFile) {
-        const url = await upload()
-        if (url) {
-          onChange(url)
-          return url
-        }
-      }
-      return null
-    }
-  }), [pendingFile, upload, onChange])
-
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -136,7 +112,7 @@ export const ThumbnailUpload = forwardRef<ThumbnailUploadRef, ThumbnailUploadPro
               <>
                 <ImageIcon className="w-12 h-12 text-muted-foreground mb-4" />
                 <p className="text-sm font-medium mb-1">Arraste uma imagem ou clique para selecionar</p>
-                <p className="text-xs text-muted-foreground mb-4">JPEG, PNG ou WebP (máx. 2MB)</p>
+                <p className="text-xs text-muted-foreground mb-4">JPEG, PNG ou WebP (máx. 5MB)</p>
                 <Button
                   type="button"
                   variant="outline"
@@ -162,4 +138,4 @@ export const ThumbnailUpload = forwardRef<ThumbnailUploadRef, ThumbnailUploadPro
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   )
-})
+}

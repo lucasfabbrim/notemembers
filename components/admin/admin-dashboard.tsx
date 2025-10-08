@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useButtonCooldown } from "@/hooks/use-button-cooldown"
 
 interface DashboardStats {
   totalUsers: number
@@ -30,12 +29,12 @@ interface DashboardStats {
 export function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
   const [editingVideo, setEditingVideo] = useState<any>(null)
   const [creatingCategory, setCreatingCategory] = useState(false)
   const [creatingVideo, setCreatingVideo] = useState(false)
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>("")
-  const { startCooldown } = useButtonCooldown("admin-dashboard")
 
   useEffect(() => {
     loadDashboardData()
@@ -92,38 +91,53 @@ export function AdminDashboard() {
   }
 
   const handleCreateCategory = async (data: any) => {
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
       await api.admin.createCategory(data, token)
       await loadDashboardData()
       setCreatingCategory(false)
-    })
+    } catch (error) {
+      console.error("Erro ao criar categoria:", error)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleUpdateCategory = async (slug: string, data: any) => {
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
       await api.admin.updateCategory(slug, data, token)
       await loadDashboardData()
       setEditingCategory(null)
-    })
+    } catch (error) {
+      console.error("Erro ao atualizar categoria:", error)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleDeleteCategory = async (slug: string) => {
     if (!confirm("Tem certeza que deseja excluir esta categoria?")) return
-    
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
       await api.admin.deleteCategory(slug, token)
       await loadDashboardData()
-    })
+    } catch (error) {
+      console.error("Erro ao excluir categoria:", error)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleCreateVideo = async (data: any) => {
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
 
@@ -148,11 +162,17 @@ export function AdminDashboard() {
       await loadDashboardData()
       setCreatingVideo(false)
       setSelectedCategorySlug("")
-    })
+    } catch (error: any) {
+      console.error("Erro ao criar vídeo:", error?.message || error)
+      alert(`Erro ao criar vídeo: ${error?.message || "Erro desconhecido"}`)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleUpdateVideo = async (categorySlug: string, videoSlug: string, data: any) => {
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
 
@@ -167,7 +187,7 @@ export function AdminDashboard() {
         title,
         slug,
         description: rest.description || "",
-        url: rest.video_url || "",
+        video_url: rest.video_url || "",
         thumbnail: thumbnail_url || "",
         duration: data.duration || 0,
         isPublished: data.isPublished !== undefined ? data.isPublished : true,
@@ -176,18 +196,26 @@ export function AdminDashboard() {
       await api.admin.updateVideo(categorySlug, videoSlug, videoData, token)
       await loadDashboardData()
       setEditingVideo(null)
-    })
+    } catch (error) {
+      console.error("Erro ao atualizar vídeo:", error)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleDeleteVideo = async (categorySlug: string, videoSlug: string) => {
     if (!confirm("Tem certeza que deseja excluir este vídeo?")) return
-    
-    await startCooldown(async () => {
+    try {
+      setActionLoading(true)
       const token = getAuthToken()
       if (!token) return
       await api.admin.deleteVideo(categorySlug, videoSlug, token)
       await loadDashboardData()
-    })
+    } catch (error) {
+      console.error("Erro ao excluir vídeo:", error)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   if (loading) {
@@ -295,7 +323,7 @@ export function AdminDashboard() {
             <CardTitle>Gerenciamento de Categorias</CardTitle>
             <CardDescription>Todas as categorias - Totalmente editável</CardDescription>
           </div>
-          <Button onClick={() => setCreatingCategory(true)} className="gap-2">
+          <Button onClick={() => setCreatingCategory(true)} disabled={actionLoading} className="gap-2">
             <Icon icon="solar:add-circle-bold" className="h-5 w-5" />
             Nova Categoria
           </Button>
@@ -316,6 +344,7 @@ export function AdminDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={() => setEditingCategory(category)}
+                    disabled={actionLoading}
                     className="flex-1 gap-1"
                   >
                     <Icon icon="solar:pen-bold" className="h-3 w-3" />
@@ -325,6 +354,7 @@ export function AdminDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDeleteCategory(category.slug)}
+                    disabled={actionLoading}
                     className="flex-1 gap-1 text-destructive"
                   >
                     <Icon icon="solar:trash-bin-trash-bold" className="h-3 w-3" />
@@ -344,15 +374,15 @@ export function AdminDashboard() {
             <CardTitle>Gerenciamento de Vídeos</CardTitle>
             <CardDescription>Todos os vídeos - Totalmente editável</CardDescription>
           </div>
-          <Button onClick={() => setCreatingVideo(true)} className="gap-2">
+          <Button onClick={() => setCreatingVideo(true)} disabled={actionLoading} className="gap-2">
             <Icon icon="solar:add-circle-bold" className="h-5 w-5" />
             Novo Vídeo
           </Button>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {stats.videos.map((video, index) => (
-              <Card key={`video-${video.id || index}-${index}`} className="border-muted hover:border-purple-500/40 transition-colors">
+            {stats.videos.map((video) => (
+              <Card key={video.id} className="border-muted hover:border-purple-500/40 transition-colors">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base line-clamp-1">{video.title}</CardTitle>
@@ -366,7 +396,7 @@ export function AdminDashboard() {
                   {video.products?.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {video.products.map((p: string, i: number) => (
-                        <Badge key={`video-${video.id || index}-${index}-product-${i}`} variant="secondary" className="text-xs">
+                        <Badge key={i} variant="secondary" className="text-xs">
                           {p}
                         </Badge>
                       ))}
@@ -377,6 +407,7 @@ export function AdminDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => setEditingVideo(video)}
+                      disabled={actionLoading}
                       className="flex-1 gap-1"
                     >
                       <Icon icon="solar:pen-bold" className="h-3 w-3" />
@@ -386,6 +417,7 @@ export function AdminDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleDeleteVideo(video.category?.slug, video.slug)}
+                      disabled={actionLoading}
                       className="flex-1 gap-1 text-destructive"
                     >
                       <Icon icon="solar:trash-bin-trash-bold" className="h-3 w-3" />
@@ -424,8 +456,8 @@ export function AdminDashboard() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  stats.users.map((user, index) => (
-                    <TableRow key={`user-${user.id || index}-${index}`}>
+                  stats.users.map((user) => (
+                    <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell className="text-muted-foreground">{user.email}</TableCell>
                       <TableCell>
@@ -437,7 +469,7 @@ export function AdminDashboard() {
                             {user.purchases
                               .flatMap((p: any) => p.products || [])
                               .map((prod: string, i: number) => (
-                                <Badge key={`user-${user.id || index}-${index}-product-${i}`} variant="outline" className="text-xs">
+                                <Badge key={i} variant="outline" className="text-xs">
                                   {prod}
                                 </Badge>
                               ))}
@@ -481,7 +513,7 @@ export function AdminDashboard() {
               <Label htmlFor="description">Descrição</Label>
               <Textarea id="description" name="description" rows={3} />
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={actionLoading}>
               Criar Categoria
             </Button>
           </form>
@@ -515,7 +547,7 @@ export function AdminDashboard() {
                 <Label htmlFor="description">Descrição</Label>
                 <Textarea id="description" name="description" defaultValue={editingCategory.description} rows={3} />
               </div>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={actionLoading}>
                 Salvar Alterações
               </Button>
             </form>
@@ -593,7 +625,7 @@ export function AdminDashboard() {
               <Label htmlFor="products">Produtos (separados por vírgula)</Label>
               <Input id="products" name="products" placeholder="produto1, produto2" />
             </div>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={actionLoading}>
               Criar Vídeo
             </Button>
           </form>
@@ -648,7 +680,7 @@ export function AdminDashboard() {
                   placeholder="produto1, produto2"
                 />
               </div>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={actionLoading}>
                 Salvar Alterações
               </Button>
             </form>

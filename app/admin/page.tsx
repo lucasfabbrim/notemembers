@@ -12,7 +12,6 @@ import { CategoriesManager } from "@/components/admin/categories-manager"
 import { VideosManager } from "@/components/admin/videos-manager"
 import { UsersManager } from "@/components/admin/users-manager"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
-import { ProductsManager } from "@/components/admin/products-manager"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -21,6 +20,10 @@ export default function AdminPage() {
   const handleLogout = () => {
     removeAuthToken()
     router.push("/login")
+  }
+
+  const handleGoToDashboard = () => {
+    router.push("/dashboard")
   }
 
   return (
@@ -35,9 +38,15 @@ export default function AdminPage() {
               <span className="text-sm font-medium text-purple-500">Admin</span>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} title="Sair">
-            <Icon icon="solar:logout-2-bold" className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleGoToDashboard} className="gap-2 bg-transparent">
+              <Icon icon="solar:home-2-bold" className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="Sair">
+              <Icon icon="solar:logout-2-bold" className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -49,7 +58,7 @@ export default function AdminPage() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
               <TabsTrigger value="dashboard" className="gap-2">
                 <Icon icon="solar:chart-2-bold" className="w-4 h-4" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -61,10 +70,6 @@ export default function AdminPage() {
               <TabsTrigger value="videos" className="gap-2">
                 <Icon icon="solar:videocamera-bold" className="w-4 h-4" />
                 <span className="hidden sm:inline">Vídeos</span>
-              </TabsTrigger>
-              <TabsTrigger value="products" className="gap-2">
-                <Icon icon="solar:bag-4-bold" className="w-4 h-4" />
-                <span className="hidden sm:inline">Produtos</span>
               </TabsTrigger>
               <TabsTrigger value="users" className="gap-2">
                 <Icon icon="solar:users-group-rounded-bold" className="w-4 h-4" />
@@ -84,9 +89,6 @@ export default function AdminPage() {
               <VideosManager />
             </TabsContent>
 
-            <TabsContent value="products" className="space-y-4">
-              <ProductsManager />
-            </TabsContent>
 
             <TabsContent value="users" className="space-y-4">
               <UsersManager />

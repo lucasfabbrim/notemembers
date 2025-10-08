@@ -49,7 +49,7 @@ export function ProductsManager() {
     isActive: true,
   })
   const { toast } = useToast()
-  const { startCooldown } = useButtonCooldown("products-manager")
+  const { executeAction } = useButtonCooldown()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successAnimation, setSuccessAnimation] = useState(false)
 
@@ -105,7 +105,7 @@ export function ProductsManager() {
     setIsSubmitting(true)
 
     try {
-      await startCooldown(async () => {
+      await executeAction(async () => {
         const token = getAuthToken()
         if (!token) throw new Error("Token não encontrado")
 

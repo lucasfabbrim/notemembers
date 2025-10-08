@@ -27,13 +27,13 @@ export async function CategoriesCarousel() {
     const categoriesData = await api.categories.getAll()
     const categoriesArray = Array.isArray(categoriesData)
       ? categoriesData
-      : categoriesData?.data?.categories || categoriesData?.data || []
+      : (categoriesData as any)?.data?.categories || (categoriesData as any)?.data || []
     categories = categoriesArray
 
     for (const category of categories) {
       try {
         const response = await api.categories.getVideos(category.slug)
-        const videosArray = Array.isArray(response) ? response : response?.data?.videos || response?.videos || []
+        const videosArray = Array.isArray(response) ? response : response?.data?.videos || (response as any)?.videos || []
 
         if (videosArray.length > 0) {
           categoryVideos[category.slug] = videosArray
@@ -81,27 +81,29 @@ export async function CategoriesCarousel() {
   }
 
   return (
-    <div className="space-y-16 pt-4 pb-10">
+    <div className="space-y-12 md:space-y-16 pt-2 md:pt-4 pb-8 md:pb-10">
       {categoriesWithVideos.map((category) => {
         const videos = categoryVideos[category.slug] || []
 
         return (
-          <section key={category.id} className="container mx-auto px-4 md:px-6 lg:px-8">
-            <div className="mb-6">
+          <section key={category.id} className="container mx-auto px-3 md:px-6 lg:px-8">
+            <div className="mb-4 md:mb-6">
               <header className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{category.name}</h2>
+                <div className="space-y-0.5 md:space-y-1">
+                  <h2 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
+                    {category.name}
+                  </h2>
                   {category.description && (
-                    <p className="text-sm md:text-base text-zinc-400 max-w-3xl">{category.description}</p>
+                    <p className="text-xs md:text-sm lg:text-base text-zinc-400 max-w-3xl">{category.description}</p>
                   )}
                 </div>
               </header>
             </div>
 
-            <div className="overflow-x-auto md:overflow-hidden pb-4">
+            <div className="overflow-x-auto md:overflow-hidden pb-3 md:pb-4">
               <VideoCarousel
                 items={videos.map((video, index) => ({
-                  id: video.id,
+                  id: video.id ? `${category.slug}-${video.id}` : `${category.slug}-${video.slug}-${index}`,
                   slug: video.slug,
                   title: video.title,
                   thumbnail: video.thumbnail,

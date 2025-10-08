@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { Icon } from "@iconify/react"
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,8 +23,9 @@ import { api } from "@/lib/api"
 import { getAuthToken } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { useButtonCooldown } from "@/hooks/use-button-cooldown"
-import { ThumbnailUpload, ThumbnailUploadRef } from "@/components/ui/thumbnail-upload"
-import { UploadModal } from "@/components/ui/upload-modal"
+import { ThumbnailUpload } from "@/components/ui/thumbnail-upload"
+import { VideoUploadWizard } from "@/components/admin/video-upload-wizard"
+import { LoadingModal } from "@/components/ui/loading-modal"
 
 interface Video {
   id: string
@@ -57,6 +58,7 @@ export function VideosManager() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [editingVideo, setEditingVideo] = useState<{ video: Video; categorySlug: string } | null>(null)
   const [formData, setFormData] = useState({
     title: "",
@@ -68,26 +70,14 @@ export function VideosManager() {
     isPublished: true,
     requiredProducts: [] as string[],
   })
+  const [loadingStatus, setLoadingStatus] = useState<"loading" | "success" | "error" | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState("")
   const { toast } = useToast()
   const { startCooldown } = useButtonCooldown("videos-manager")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const thumbnailUploadRef = useRef<ThumbnailUploadRef>(null)
-  
-  // Upload modal state
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<"uploading" | "success" | "error" | "idle">("idle")
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [uploadError, setUploadError] = useState<string | undefined>()
 
   useEffect(() => {
     loadData()
-  }, [])
-
-  // Memoize the status change callback to prevent setState during render
-  const handleStatusChange = useCallback((status: "uploading" | "success" | "error", progress?: number, error?: string) => {
-    setUploadStatus(status)
-    if (progress !== undefined) setUploadProgress(progress)
-    if (error) setUploadError(error)
   }, [])
 
   const loadData = async () => {
@@ -95,10 +85,8 @@ export function VideosManager() {
     if (!token) return
 
     try {
-      const [categoriesResponse, productsResponse] = await Promise.all([
-        api.admin.getAllCategories(token),
-        api.products.getAll(token),
-      ])
+      const categoriesResponse = await api.admin.getAllCategories(token)
+      const productsResponse = await api.products.getAll(token)
 
       const categoriesData = categoriesResponse.data || []
       setCategories(categoriesData)
@@ -147,80 +135,66 @@ export function VideosManager() {
         isPublished: video.isPublished,
         requiredProducts: video.requiredProducts || [],
       })
+      setDialogOpen(true)
     } else {
-      setEditingVideo(null)
-      setFormData({
-        title: "",
-        description: "",
-        url: "",
-        thumbnail: "",
-        duration: 0,
-        categorySlug: "",
-        isPublished: true,
-        requiredProducts: [],
-      })
+      setWizardOpen(true)
     }
-    setDialogOpen(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setLoadingStatus("loading")
+    setLoadingMessage("Atualizando vídeo...")
 
     try {
       await startCooldown(async () => {
         const token = getAuthToken()
         if (!token) throw new Error("Token não encontrado")
 
-        const slug = formData.title
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
-
-        // Upload thumbnail first if there's a pending file
-        let thumbnailUrl = formData.thumbnail
-        if (thumbnailUploadRef.current) {
-          setUploadModalOpen(true)
-          setUploadStatus("uploading")
-          setUploadProgress(0)
-          
-          const uploadedUrl = await thumbnailUploadRef.current.upload()
-          if (uploadedUrl) {
-            thumbnailUrl = uploadedUrl
-          } else {
-            // Upload failed, don't proceed with video creation
-            setUploadStatus("error")
-            return
-          }
-        }
-
         const payload = {
           title: formData.title,
-          slug,
+          slug: formData.title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, ""),
           description: formData.description,
           url: formData.url,
-          thumbnail: thumbnailUrl,
+          thumbnail: formData.thumbnail,
           duration: formData.duration,
           isPublished: formData.isPublished,
-          requiredProducts: formData.requiredProducts,
+          // Include new category if it changed - try different field names
+          ...(formData.categorySlug !== editingVideo?.categorySlug && { 
+            categorySlug: formData.categorySlug,
+            category: formData.categorySlug,
+            newCategorySlug: formData.categorySlug
+          }),
         }
 
         if (editingVideo) {
-          await api.admin.updateVideo(formData.categorySlug, editingVideo.video.slug, payload, token)
-          toast({ title: "Vídeo atualizado com sucesso!" })
-        } else {
-          await api.admin.createVideo(formData.categorySlug, payload, token)
-          toast({ title: "Vídeo criado com sucesso!" })
+          console.log("[v0] Updating video:", {
+            originalCategory: editingVideo.categorySlug,
+            newCategory: formData.categorySlug,
+            videoSlug: editingVideo.video.slug,
+            payload: payload,
+            categoryChanged: formData.categorySlug !== editingVideo.categorySlug
+          })
+          await api.admin.updateVideo(editingVideo.categorySlug, editingVideo.video.slug, payload, token)
+          setLoadingStatus("success")
+          setTimeout(() => {
+            setLoadingStatus(null)
+            setDialogOpen(false)
+            loadData()
+            toast({ title: "Vídeo atualizado com sucesso!" })
+          }, 2000)
         }
-        
-        // Close upload modal and show success
-        setUploadStatus("success")
-        setTimeout(() => {
-          setUploadModalOpen(false)
-          setDialogOpen(false)
-          loadData()
-        }, 1500)
       })
+    } catch (error: any) {
+      setLoadingStatus("error")
+      setLoadingMessage(error.message || "Erro ao atualizar vídeo")
+      setTimeout(() => {
+        setLoadingStatus(null)
+      }, 3000)
     } finally {
       setIsSubmitting(false)
     }
@@ -229,14 +203,29 @@ export function VideosManager() {
   const handleDelete = async (categorySlug: string, videoSlug: string) => {
     if (!confirm("Tem certeza que deseja excluir este vídeo?")) return
 
-    await startCooldown(async () => {
-      const token = getAuthToken()
-      if (!token) return
+    setLoadingStatus("loading")
+    setLoadingMessage("Excluindo vídeo...")
 
-      await api.admin.deleteVideo(categorySlug, videoSlug, token)
-      toast({ title: "Vídeo excluído com sucesso!" })
-      loadData()
-    })
+    try {
+      await startCooldown(async () => {
+        const token = getAuthToken()
+        if (!token) return
+
+        await api.admin.deleteVideo(categorySlug, videoSlug, token)
+        setLoadingStatus("success")
+        setTimeout(() => {
+          setLoadingStatus(null)
+          loadData()
+          toast({ title: "Vídeo excluído com sucesso!" })
+        }, 2000)
+      })
+    } catch (error: any) {
+      setLoadingStatus("error")
+      setLoadingMessage(error.message || "Erro ao excluir vídeo")
+      setTimeout(() => {
+        setLoadingStatus(null)
+      }, 3000)
+    }
   }
 
   if (loading) {
@@ -277,8 +266,8 @@ export function VideosManager() {
                   </TableCell>
                 </TableRow>
               ) : (
-                videos.map((video: any, index) => (
-                  <TableRow key={`video-${video.categorySlug}-${video.slug}-${index}`}>
+                videos.map((video: any) => (
+                  <TableRow key={`${video.categorySlug}-${video.slug}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
@@ -300,7 +289,7 @@ export function VideosManager() {
                             </Badge>
                           ))}
                           {video.requiredProducts.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge key={`${video.categorySlug}-${video.slug}-more-products`} variant="outline" className="text-xs">
                               +{video.requiredProducts.length - 2}
                             </Badge>
                           )}
@@ -344,7 +333,7 @@ export function VideosManager() {
         </div>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen && !loadingStatus} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
@@ -387,7 +376,7 @@ export function VideosManager() {
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category, index) => (
-                      <SelectItem key={`category-${category.id || index}-${index}`} value={category.slug}>
+                      <SelectItem key={`${category.id}-${category.slug}-${index}`} value={category.slug}>
                         {category.name}
                       </SelectItem>
                     ))}
@@ -408,10 +397,8 @@ export function VideosManager() {
               <div className="space-y-2">
                 <Label>Thumbnail do Vídeo</Label>
                 <ThumbnailUpload
-                  ref={thumbnailUploadRef}
                   value={formData.thumbnail}
                   onChange={(url) => setFormData({ ...formData, thumbnail: url })}
-                  onStatusChange={handleStatusChange}
                 />
               </div>
               <div className="space-y-2">
@@ -431,8 +418,8 @@ export function VideosManager() {
                   {products.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Nenhum produto disponível</p>
                   ) : (
-                    products.map((product, index) => (
-                      <div key={`product-${product.id || index}-${index}`} className="flex items-center space-x-2">
+                    products.map((product: Product, index: number) => (
+                      <div key={`product-${product.id}-${index}`} className="flex items-center space-x-2">
                         <input
                           type="checkbox"
                           id={`product-${product.id}`}
@@ -446,7 +433,7 @@ export function VideosManager() {
                             } else {
                               setFormData({
                                 ...formData,
-                                requiredProducts: formData.requiredProducts.filter((id) => id !== product.id),
+                                requiredProducts: formData.requiredProducts.filter((id: string) => id !== product.id),
                               })
                             }
                           }}
@@ -497,18 +484,20 @@ export function VideosManager() {
         </DialogContent>
       </Dialog>
 
-      {/* Upload Modal */}
-      <UploadModal
-        isOpen={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        status={uploadStatus}
-        progress={uploadProgress}
-        error={uploadError}
-        onRetry={() => {
-          setUploadStatus("idle")
-          setUploadError(undefined)
-          // Retry upload logic can be added here
-        }}
+      <VideoUploadWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        categories={categories}
+        products={products}
+        onSuccess={loadData}
+      />
+
+      <LoadingModal
+        open={!!loadingStatus}
+        status={loadingStatus || "loading"}
+        message={loadingMessage}
+        successMessage="Operação concluída!"
+        errorMessage={loadingMessage}
       />
     </div>
   )

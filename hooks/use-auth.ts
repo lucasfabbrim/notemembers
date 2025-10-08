@@ -9,13 +9,8 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log("[v0] useAuth: Loading auth state from localStorage")
-
     const userData = getUserData()
     const authToken = getAuthToken()
-
-    console.log("[v0] useAuth: User data:", userData)
-    console.log("[v0] useAuth: Token exists:", !!authToken)
 
     setUser(userData)
     setToken(authToken)

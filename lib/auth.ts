@@ -12,7 +12,6 @@ function decodeJWT(token: string): any {
     )
     return JSON.parse(jsonPayload)
   } catch (error) {
-    console.error("[v0] Error decoding JWT:", error)
     return null
   }
 }
@@ -21,7 +20,7 @@ function setCookie(name: string, value: string, days = 7) {
   if (typeof window !== "undefined") {
     const expires = new Date()
     expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure;HttpOnly`
   }
 }
 
@@ -39,7 +38,6 @@ export function setAuthToken(token: string) {
     const userData = decodeJWT(token)
     if (userData) {
       localStorage.setItem("user_data", JSON.stringify(userData))
-      setCookie("user_data", JSON.stringify(userData), 7)
     }
 
     setCookie("auth_token", token, 7)
@@ -60,14 +58,12 @@ export function removeAuthToken() {
     localStorage.removeItem("user_data")
 
     deleteCookie("auth_token")
-    deleteCookie("user_data")
   }
 }
 
 export function setUserData(user: any) {
   if (typeof window !== "undefined") {
     localStorage.setItem("user_data", JSON.stringify(user))
-    setCookie("user_data", JSON.stringify(user), 7)
   }
 }
 

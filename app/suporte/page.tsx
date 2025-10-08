@@ -65,7 +65,7 @@ export default function SupportPage() {
 
             <Button
               size="lg"
-              className="w-full md:w-auto text-base font-semibold gap-2 bg-purple-600 hover:bg-purple-700 transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
+              className="cursor-pointer text-white font-bold w-full h-12 md:w-auto text-base gap-2 bg-purple-600 hover:bg-purple-700 transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
               onClick={handleWhatsApp}
             >
               <MessageCircle className="w-5 h-5" />
@@ -79,11 +79,9 @@ export default function SupportPage() {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-purple-500" />
                   <p className="text-sm font-medium">Segunda a Sexta: 9h às 18h</p>
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-purple-500" />
                   <p className="text-sm font-medium">Sábado: 9h às 13h</p>
                 </div>
               </div>
@@ -106,22 +104,6 @@ export default function SupportPage() {
                 </Card>
               ))}
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold">Dicas Rápidas</h3>
-            <Card className="p-6 bg-zinc-900/50 border-zinc-800">
-              <ul className="space-y-3">
-                {tips.map((tip, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center text-xs font-semibold text-purple-500">
-                      {i + 1}
-                    </span>
-                    <span className="pt-0.5">{tip}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
           </div>
         </main>
 
